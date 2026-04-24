@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import {
   createTestTournament,
   createTournamentWithParticipants,
@@ -6,6 +6,9 @@ import {
   resetTestData,
   setMatchWinner,
 } from './participants';
+import {
+  saveTournamentBackup,
+} from './backup';
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -13,7 +16,6 @@ declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 if (require('electron-squirrel-startup')) {
   app.quit();
 }
-
 const createWindow = (): void => {
   const mainWindow = new BrowserWindow({
     width: 1400,
@@ -24,7 +26,36 @@ const createWindow = (): void => {
   });
 
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
-  mainWindow.webContents.openDevTools();
+  let canClose = false;
+
+mainWindow.on('close', (event) => {
+  if (canClose) {
+    return;
+  }
+
+  event.preventDefault();
+
+  const result = dialog.showMessageBoxSync(mainWindow, {
+    type: 'warning',
+
+    buttons: ['Cancelar', 'Fechar app'],
+
+    defaultId: 0,
+
+    cancelId: 0,
+
+    title: 'Fechar aplicativo',
+
+    message:
+      'Tem certeza que deseja fechar o aplicativo?\n\nIsso pode interromper um torneio em andamento.',
+  });
+
+  if (result === 1) {
+    canClose = true;
+    mainWindow.close();
+  }
+});
+  // mainWindow.webContents.openDevTools();
 };
 
 ipcMain.handle('generate-test-tournament', async () => {
@@ -38,7 +69,12 @@ ipcMain.handle(
   async (_event, payload: { tournamentName: string; participantNames: string[] }) => {
     resetTestData();
     createTournamentWithParticipants(payload.tournamentName, payload.participantNames);
-    return getTournamentData();
+    const data =
+  getTournamentData();
+
+saveTournamentBackup(data);
+
+return data;
   }
 );
 
@@ -50,7 +86,12 @@ ipcMain.handle(
   'set-match-winner',
   async (_event, payload: { matchId: number; winnerId: number }) => {
     setMatchWinner(payload.matchId, payload.winnerId);
-    return getTournamentData();
+    const data =
+  getTournamentData();
+
+saveTournamentBackup(data);
+
+return data;
   }
 );
 
