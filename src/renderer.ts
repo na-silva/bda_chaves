@@ -55,35 +55,67 @@ function getWinnerLabel(match: MatchRow) {
   return 'Pendente';
 }
 
-function buildMatchCard(match: MatchRow, tournamentFinished: boolean) {
+function buildMatchTreeCard(match: MatchRow, tournamentFinished: boolean) {
   const winnerLabel = getWinnerLabel(match);
   const matchLocked = tournamentFinished;
   const currentWinnerId = match.winner_id;
 
   return `
-    <div style="border: 1px solid #444; border-radius: 10px; padding: 16px; background: #151515;">
-      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+    <div
+      style="
+        background: #181818;
+        border: 1px solid #3a3a3a;
+        border-radius: 12px;
+        padding: 14px;
+        min-width: 240px;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.25);
+      "
+    >
+      <div style="display: flex; justify-content: space-between; gap: 12px; margin-bottom: 12px;">
         <strong>Batalha ${match.match_order}</strong>
-        <span style="font-size: 14px; color: #bbb;">Vencedor: ${winnerLabel}</span>
+        <span style="font-size: 12px; color: #aaa;">${winnerLabel}</span>
       </div>
 
-      <div style="margin-bottom: 14px; line-height: 1.8;">
-        <div>${match.participant1_name}</div>
-        <div>${match.participant2_name}</div>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px;">
+        <div
+          style="
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: ${match.winner_id === match.participant1_id ? '#2d5a27' : '#222'};
+            border: 1px solid ${match.winner_id === match.participant1_id ? '#4caf50' : '#333'};
+          "
+        >
+          ${match.participant1_name}
+        </div>
+
+        <div
+          style="
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: ${match.winner_id === match.participant2_id ? '#2d5a27' : '#222'};
+            border: 1px solid ${match.winner_id === match.participant2_id ? '#4caf50' : '#333'};
+          "
+        >
+          ${match.participant2_name}
+        </div>
       </div>
 
-      <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <div style="display: flex; flex-direction: column; gap: 8px;">
         <button
           data-action="winner"
           data-match-id="${match.id}"
           data-winner-id="${match.participant1_id}"
           data-current-winner-id="${currentWinnerId ?? ''}"
           ${matchLocked ? 'disabled' : ''}
-          style="padding: 10px 14px; border-radius: 8px; border: none; cursor: ${
-            matchLocked ? 'not-allowed' : 'pointer'
-          }; opacity: ${matchLocked ? '0.6' : '1'};"
+          style="
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: none;
+            cursor: ${matchLocked ? 'not-allowed' : 'pointer'};
+            opacity: ${matchLocked ? '0.6' : '1'};
+          "
         >
-          Vencedor: ${match.participant1_name}
+          Vitória: ${match.participant1_name}
         </button>
 
         <button
@@ -92,11 +124,15 @@ function buildMatchCard(match: MatchRow, tournamentFinished: boolean) {
           data-winner-id="${match.participant2_id}"
           data-current-winner-id="${currentWinnerId ?? ''}"
           ${matchLocked ? 'disabled' : ''}
-          style="padding: 10px 14px; border-radius: 8px; border: none; cursor: ${
-            matchLocked ? 'not-allowed' : 'pointer'
-          }; opacity: ${matchLocked ? '0.6' : '1'};"
+          style="
+            padding: 8px 10px;
+            border-radius: 8px;
+            border: none;
+            cursor: ${matchLocked ? 'not-allowed' : 'pointer'};
+            opacity: ${matchLocked ? '0.6' : '1'};
+          "
         >
-          Vencedor: ${match.participant2_name}
+          Vitória: ${match.participant2_name}
         </button>
       </div>
     </div>
@@ -110,21 +146,6 @@ function groupMatchesByRound(matches: MatchRow[]) {
     semi: matches.filter((match) => match.round === 'semi'),
     final: matches.filter((match) => match.round === 'final'),
   };
-}
-
-function buildRoundSection(title: string, matches: MatchRow[], tournamentFinished: boolean) {
-  if (matches.length === 0) {
-    return '';
-  }
-
-  return `
-    <section style="margin-bottom: 40px;">
-      <h2>${title}</h2>
-      <div style="display: grid; grid-template-columns: repeat(2, minmax(320px, 1fr)); gap: 16px;">
-        ${matches.map((match) => buildMatchCard(match, tournamentFinished)).join('')}
-      </div>
-    </section>
-  `;
 }
 
 function renderChampion(champion: TournamentData['champion']) {
@@ -146,6 +167,26 @@ function renderChampion(champion: TournamentData['champion']) {
       <div style="font-size: 14px; font-weight: bold; letter-spacing: 1px;">CAMPEÃO</div>
       <div style="font-size: 38px; font-weight: 800; margin-top: 8px;">🏆 ${champion.name}</div>
     </section>
+  `;
+}
+
+function buildTreeColumn(title: string, matches: MatchRow[], tournamentFinished: boolean) {
+  if (matches.length === 0) {
+    return '';
+  }
+
+  return `
+    <div
+      style="
+        min-width: 290px;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+      "
+    >
+      <h2 style="margin: 0 0 8px 0; font-size: 28px;">${title}</h2>
+      ${matches.map((match) => buildMatchTreeCard(match, tournamentFinished)).join('')}
+    </div>
   `;
 }
 
@@ -176,10 +217,21 @@ function renderApp(data: TournamentData) {
 
       ${renderChampion(data.champion)}
 
-      ${buildRoundSection('Oitavas de final', grouped.oitavas, tournamentFinished)}
-      ${buildRoundSection('Quartas de final', grouped.quartas, tournamentFinished)}
-      ${buildRoundSection('Semifinal', grouped.semi, tournamentFinished)}
-      ${buildRoundSection('Final', grouped.final, tournamentFinished)}
+      <div style="overflow-x: auto; padding-bottom: 10px;">
+        <div
+          style="
+            display: flex;
+            gap: 28px;
+            align-items: flex-start;
+            min-width: max-content;
+          "
+        >
+          ${buildTreeColumn('Oitavas', grouped.oitavas, tournamentFinished)}
+          ${buildTreeColumn('Quartas', grouped.quartas, tournamentFinished)}
+          ${buildTreeColumn('Semifinal', grouped.semi, tournamentFinished)}
+          ${buildTreeColumn('Final', grouped.final, tournamentFinished)}
+        </div>
+      </div>
     </div>
   `;
 
