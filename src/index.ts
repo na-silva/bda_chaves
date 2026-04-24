@@ -38,7 +38,7 @@ mainWindow.on('close', (event) => {
   const result = dialog.showMessageBoxSync(mainWindow, {
     type: 'warning',
 
-    buttons: ['Cancelar', 'Fechar app'],
+    buttons: ['Voltar', 'Fechar app'],
 
     defaultId: 0,
 

@@ -40,6 +40,6 @@ export function saveTournamentBackup(
   );
 
   console.log(
-    '[BACKUP] Snapshot salvo'
+    '[BKP] Snapshot salvo'
   );
 }

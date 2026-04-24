@@ -190,7 +190,7 @@ function renderCreateTournamentForm() {
         <input
           type="text"
           id="tournament-name"
-          placeholder="Nome do torneio"
+          placeholder="Nome/data do torneio"
           style="padding:12px;border-radius:8px;border:1px solid #333;background:#181818;color:white;"
         />
 
@@ -530,7 +530,7 @@ function bindExportButton(data: TournamentData) {
         'Copiar resultado';
     }, 2000);
   });
-  
+
   closeButton?.addEventListener('click', () => {
     if (!exportModal) {
       return;
