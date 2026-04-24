@@ -535,6 +535,19 @@ function bindExportButton(data: TournamentData) {
     if (!exportModal) {
       return;
     }
+      document.addEventListener('keydown', (event) => {
+    if (event.key !== 'Escape') {
+      return;
+    }
+
+    if (!exportModal) {
+      return;
+    }
+
+    if (exportModal.style.display === 'block') {
+      exportModal.style.display = 'none';
+    }
+  });
 
     exportModal.style.display = 'none';
   });
