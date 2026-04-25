@@ -118,11 +118,64 @@ function getMatchesByRound(tournamentId: number, round: string) {
   `).all(tournamentId, round) as MatchRow[];
 }
 
+function getRoundOrder(round: string) {
+  const order = {
+    oitavas: 1,
+    quartas: 2,
+    semi: 3,
+    final: 4,
+  };
+
+  return order[
+    round as keyof typeof order
+  ] ?? 0;
+}
+
 function nextRoundName(round: string) {
   if (round === 'oitavas') return 'quartas';
   if (round === 'quartas') return 'semi';
   if (round === 'semi') return 'final';
   return null;
+}
+
+function deleteFutureRounds(
+  tournamentId: number,
+  currentRound: string
+) {
+  const currentOrder =
+    getRoundOrder(currentRound);
+
+  const rounds = [
+    'oitavas',
+    'quartas',
+    'semi',
+    'final',
+  ];
+
+  const futureRounds =
+    rounds.filter(
+      (round) =>
+        getRoundOrder(round)
+        > currentOrder
+    );
+
+  if (futureRounds.length === 0) {
+    return;
+  }
+
+  const placeholders =
+    futureRounds
+      .map(() => '?')
+      .join(',');
+
+  db.prepare(`
+    DELETE FROM matches
+    WHERE tournament_id = ?
+      AND round IN (${placeholders})
+  `).run(
+    tournamentId,
+    ...futureRounds
+  );
 }
 
 function finalizeTournamentIfPossible(tournamentId: number) {
@@ -291,6 +344,17 @@ export function setMatchWinner(matchId: number, winnerId: number) {
 
   if (!tournament || tournament.status === 'finished') {
     return;
+  }
+
+  const changingWinner =
+    selectedMatch.winner_id !== null
+    && selectedMatch.winner_id !== winnerId;
+
+  if (changingWinner) {
+    deleteFutureRounds(
+      selectedMatch.tournament_id,
+      selectedMatch.round
+    );
   }
 
   db.prepare(`

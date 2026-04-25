@@ -1,3 +1,4 @@
+//varios imports 
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
 import {
   createTestTournament,
@@ -9,7 +10,9 @@ import {
 import {
   saveTournamentBackup,
 } from './backup';
-
+import {
+  exportTournamentResult,
+} from './resultsExporter';
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
 
@@ -90,6 +93,12 @@ ipcMain.handle(
   getTournamentData();
 
 saveTournamentBackup(data);
+      if (
+        data.tournament?.status
+        === 'finished'
+      ) {
+        exportTournamentResult(data);
+      }
 
 return data;
   }
