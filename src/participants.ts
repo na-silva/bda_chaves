@@ -1,11 +1,13 @@
 import db from './db';
 import { generateFirstRoundMatches } from './bracket';
+import { generateParticipantKey } from './mcIdentity';
 
 type ParticipantRow = {
   id: number;
   tournament_id: number;
   name: string;
   nickname: string | null;
+  participant_key: string;
 };
 
 type MatchRow = {
@@ -16,6 +18,7 @@ type MatchRow = {
   participant1_id: number;
   participant2_id: number;
   winner_id: number | null;
+  win_type: string;
 };
 
 export function resetTestData() {
@@ -44,12 +47,13 @@ export function createTestTournament() {
     'MC P',
   ];
 
-  return createTournamentWithParticipants('Batalha Principal', participantNames);
+  return createTournamentWithParticipants('Batalha Principal', participantNames, 'sangue');
 }
 
 export function createTournamentWithParticipants(
   tournamentName: string,
-  participantNames: string[]
+  participantNames: string[],
+  battleType: string
 ) {
   const cleanedNames = participantNames
     .map((name) => name.trim())
@@ -60,24 +64,32 @@ export function createTournamentWithParticipants(
   }
 
   const insertTournament = db.prepare(`
-    INSERT INTO tournaments (name, status)
-    VALUES (?, 'active')
+    INSERT INTO tournaments (name, status, battle_type)
+    VALUES (?, 'active', ?)
   `);
 
-  const tournamentResult = insertTournament.run(tournamentName);
+  const tournamentResult =
+  insertTournament.run(
+    tournamentName,
+    battleType
+  );
   const tournamentId = Number(tournamentResult.lastInsertRowid);
 
   const insertParticipant = db.prepare(`
-    INSERT INTO participants (tournament_id, name)
-    VALUES (?, ?)
+    INSERT INTO participants (tournament_id, participant_key, name)
+    VALUES (?, ?, ?)
   `);
 
   for (const name of cleanedNames) {
-    insertParticipant.run(tournamentId, name);
-  }
+  insertParticipant.run(
+    tournamentId,
+    generateParticipantKey(name),
+    name
+  );
+}
 
   const participants = db.prepare(`
-    SELECT id, tournament_id, name, nickname
+    SELECT id, tournament_id, participant_key, name, nickname
     FROM participants
     WHERE tournament_id = ?
     ORDER BY id ASC
@@ -256,14 +268,23 @@ function createNextRoundIfPossible(tournamentId: number, currentRound: string) {
 
 function getChampion(tournamentId: number) {
   const champion = db.prepare(`
-    SELECT p.id, p.name
-    FROM matches m
-    INNER JOIN participants p ON p.id = m.winner_id
-    WHERE m.tournament_id = ?
-      AND m.round = 'final'
-      AND m.winner_id IS NOT NULL
-    LIMIT 1
-  `).get(tournamentId) as { id: number; name: string } | undefined;
+  SELECT
+    p.id,
+    p.participant_key,
+    p.name
+  FROM matches m
+  INNER JOIN participants p ON p.id = m.winner_id
+  WHERE m.tournament_id = ?
+    AND m.round = 'final'
+    AND m.winner_id IS NOT NULL
+  LIMIT 1
+`).get(tournamentId) as
+  | {
+      id: number;
+      participant_key: string;
+      name: string;
+    }
+  | undefined;
 
   return champion ?? null;
 }
@@ -279,6 +300,7 @@ export function getTournamentData() {
         id: number;
         name: string;
         status: string;
+        battle_type: string;
         created_at: string;
       }
     | undefined;
@@ -297,9 +319,12 @@ export function getTournamentData() {
       m.round,
       m.match_order,
       m.winner_id,
+      m.win_type,
       p1.id AS participant1_id,
+      p1.participant_key AS participant1_key,
       p1.name AS participant1_name,
       p2.id AS participant2_id,
+      p2.participant_key AS participant2_key,
       p2.name AS participant2_name
     FROM matches m
     INNER JOIN participants p1 ON p1.id = m.participant1_id
@@ -323,7 +348,7 @@ export function getTournamentData() {
   };
 }
 
-export function setMatchWinner(matchId: number, winnerId: number) {
+export function setMatchWinner(matchId: number, winnerId: number, winType: string) {
   const selectedMatch = db.prepare(`
     SELECT *
     FROM matches
@@ -357,11 +382,37 @@ export function setMatchWinner(matchId: number, winnerId: number) {
     );
   }
 
+ db.prepare(`
+  UPDATE matches
+
+  SET
+    winner_id = ?,
+    win_type = ?
+
+  WHERE id = ?
+`)
+.run(
+  winnerId,
+  winType,
+  matchId
+);
+
+const updated =
   db.prepare(`
-    UPDATE matches
-    SET winner_id = ?
+    SELECT
+      winner_id,
+      win_type
+
+    FROM matches
+
     WHERE id = ?
-  `).run(winnerId, matchId);
+  `)
+  .get(matchId);
+
+console.log(
+  'UPDATED MATCH',
+  updated
+);
 
   createNextRoundIfPossible(selectedMatch.tournament_id, selectedMatch.round);
 }

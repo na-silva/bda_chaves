@@ -1,4 +1,7 @@
 export {};
+let timerSeconds = 45;
+let currentSeconds = timerSeconds;
+let timerInterval: number | null = null;
 
 type MatchRow = {
   id: number;
@@ -9,6 +12,7 @@ type MatchRow = {
   participant1_name: string;
   participant2_id: number;
   participant2_name: string;
+  win_type: string;
 };
 
 type TournamentData = {
@@ -17,26 +21,365 @@ type TournamentData = {
     name: string;
     status: string;
     created_at: string;
+    battle_type: string;
   } | null;
   matches: MatchRow[];
   champion: {
-    id: number;
-    name: string;
-  } | null;
+  id: number;
+  participant_key: string;
+  name: string;
+} | null;
 };
 
 declare global {
   interface Window {
     battleManager: {
       generateTestTournament: () => Promise<TournamentData>;
+
       createManualTournament: (
         tournamentName: string,
-        participantNames: string[]
+        participantNames: string[],
+        battleType: string
       ) => Promise<TournamentData>;
+
       getTournamentData: () => Promise<TournamentData>;
-      setMatchWinner: (matchId: number, winnerId: number) => Promise<TournamentData>;
+
+      setMatchWinner: (
+        matchId: number,
+        winnerId: number,
+        winType: string
+      ) => Promise<TournamentData>;
     };
   }
+}
+
+function loadTimerValue() {
+  const saved = localStorage.getItem(
+    'battle-manager-timer'
+  );
+
+  if (!saved) {
+    timerSeconds = 45;
+    currentSeconds = 45;
+    return;
+  }
+
+  const parsed = Number(saved);
+
+  if (Number.isNaN(parsed)) {
+    timerSeconds = 45;
+    currentSeconds = 45;
+    return;
+  }
+
+  timerSeconds = parsed;
+  currentSeconds = parsed;
+}
+
+function saveTimerValue() {
+  localStorage.setItem(
+    'battle-manager-timer',
+    String(timerSeconds)
+  );
+}
+
+function formatTimer(seconds: number) {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+
+  return `${String(mins).padStart(2, '0')}:${String(
+    secs
+  ).padStart(2, '0')}`;
+}
+
+function updateTimerDisplay() {
+  const display =
+    document.getElementById(
+      'timer-display'
+    );
+
+  if (!display) {
+    return;
+  }
+
+  display.textContent =
+    formatTimer(currentSeconds);
+
+  if (currentSeconds <= 5) {
+  const shouldBlink =
+    currentSeconds % 2 === 0;
+
+  display.setAttribute(
+    'style',
+    `
+      font-size:32px;
+
+      font-weight:bold;
+
+      color:
+        ${
+          shouldBlink
+            ? '#ff2222'
+            : '#ffffff'
+        };
+
+      background:
+        ${
+          shouldBlink
+            ? '#3a0000'
+            : 'transparent'
+        };
+
+      border-radius:12px;
+
+      padding:8px;
+
+      min-width:120px;
+
+      text-align:center;
+    `
+  );
+
+  return;
+}
+
+if (currentSeconds <= 10) {
+  display.setAttribute(
+    'style',
+    `
+      font-size:32px;
+      font-weight:bold;
+      color:#ff4d4d;
+      min-width:120px;
+      text-align:center;
+    `
+  );
+
+  return;
+}
+
+  display.setAttribute(
+    'style',
+    `
+      font-size:32px;
+      font-weight:bold;
+      color:white;
+      min-width:120px;
+      text-align:center;
+    `
+  );
+}
+
+function stopTimer() {
+  if (timerInterval !== null) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
+
+function startTimer() {
+  if (timerInterval !== null) {
+    return;
+  }
+
+  timerInterval = window.setInterval(
+    () => {
+      if (currentSeconds <= 0) {
+        stopTimer();
+        return;
+      }
+
+      currentSeconds -= 1;
+      updateTimerDisplay();
+    },
+    1000
+  );
+}
+
+function resetTimer() {
+  stopTimer();
+
+  currentSeconds = timerSeconds;
+
+  updateTimerDisplay();
+}
+
+function renderTimerControls() {
+  return `
+    <div
+      style="
+        display:flex;
+        align-items:center;
+        gap:10px;
+
+        background:#151515;
+        border:1px solid #333;
+
+        padding:12px;
+        border-radius:14px;
+      "
+    >
+      <button
+        id="timer-minus"
+
+        style="
+          width:40px;
+          height:40px;
+          border:none;
+          border-radius:8px;
+          cursor:pointer;
+          font-size:20px;
+        "
+      >
+        -
+      </button>
+
+      <div
+        id="timer-display"
+
+        style="
+          font-size:32px;
+          font-weight:bold;
+          color:white;
+          min-width:120px;
+          text-align:center;
+        "
+      >
+        00:45
+      </div>
+
+      <button
+        id="timer-plus"
+
+        style="
+          width:40px;
+          height:40px;
+          border:none;
+          border-radius:8px;
+          cursor:pointer;
+          font-size:20px;
+        "
+      >
+        +
+      </button>
+
+      <button
+        id="timer-start"
+
+        style="
+          padding:10px 14px;
+          border:none;
+          border-radius:8px;
+          cursor:pointer;
+          font-weight:bold;
+        "
+      >
+        Iniciar
+      </button>
+
+      <button
+        id="timer-pause"
+
+        style="
+          padding:10px 14px;
+          border:none;
+          border-radius:8px;
+          cursor:pointer;
+        "
+      >
+        Pausar
+      </button>
+
+      <button
+        id="timer-reset"
+
+        style="
+          padding:10px 14px;
+          border:none;
+          border-radius:8px;
+          cursor:pointer;
+        "
+      >
+        Reset
+      </button>
+    </div>
+  `;
+}
+
+function bindTimerControls() {
+  const minusButton =
+    document.getElementById(
+      'timer-minus'
+    );
+
+  const plusButton =
+    document.getElementById(
+      'timer-plus'
+    );
+
+  const startButton =
+    document.getElementById(
+      'timer-start'
+    );
+
+  const pauseButton =
+    document.getElementById(
+      'timer-pause'
+    );
+
+  const resetButton =
+    document.getElementById(
+      'timer-reset'
+    );
+
+  minusButton?.addEventListener(
+    'click',
+    () => {
+      if (timerSeconds <= 5) {
+        return;
+      }
+
+      timerSeconds -= 5;
+      currentSeconds = timerSeconds;
+
+      saveTimerValue();
+      updateTimerDisplay();
+    }
+  );
+
+  plusButton?.addEventListener(
+    'click',
+    () => {
+      timerSeconds += 5;
+      currentSeconds = timerSeconds;
+
+      saveTimerValue();
+      updateTimerDisplay();
+    }
+  );
+
+  startButton?.addEventListener(
+    'click',
+    () => {
+      startTimer();
+    }
+  );
+
+  pauseButton?.addEventListener(
+    'click',
+    () => {
+      stopTimer();
+    }
+  );
+
+  resetButton?.addEventListener(
+    'click',
+    () => {
+      resetTimer();
+    }
+  );
+
+  updateTimerDisplay();
 }
 
 function getWinnerLabel(match: MatchRow) {
@@ -58,7 +401,13 @@ function buildMatchTreeCard(match: MatchRow, tournamentFinished: boolean) {
   const winnerLabel = getWinnerLabel(match);
 
   return `
-    <div style="background:#181818;border:1px solid #333;border-radius:12px;padding:14px;min-width:240px;">
+    <div style="background:
+  linear-gradient(
+    180deg,
+    rgba(25,15,35,0.95),
+    rgba(10,10,15,0.95)
+  );border:1px solid rgba(57,255,20,0.55);border-radius:12px;padding:14px;min-width:240px;box-shadow:
+  0 0 10px rgba(57,255,20,0.12);">
       <div style="display:flex;justify-content:space-between;margin-bottom:12px;">
         <strong>Batalha ${match.match_order}</strong>
         <span style="font-size:12px;color:#999;">${winnerLabel}</span>
@@ -72,7 +421,32 @@ function buildMatchTreeCard(match: MatchRow, tournamentFinished: boolean) {
           ${match.participant2_name}
         </div>
       </div>
+            <div
+        style="
+          display:flex;
+          justify-content:flex-end;
+          margin-bottom:10px;
+          font-size:12px;
+          color:#aaa;
+        "
+      >
+        <label
+          style="
+            display:flex;
+            align-items:center;
+            gap:6px;
+            cursor:pointer;
+          "
+        >
+          <input
+            type="checkbox"
+            class="rounds-checkbox"
+            data-match-id="${match.id}"
+          />
 
+          Vitória por 2x1
+        </label>
+      </div>
       <div style="display:flex;flex-direction:column;gap:8px;">
         <button
           data-action="winner"
@@ -100,13 +474,98 @@ function buildMatchTreeCard(match: MatchRow, tournamentFinished: boolean) {
   `;
 }
 
-function buildTreeColumn(title: string, matches: MatchRow[], tournamentFinished: boolean) {
-  if (matches.length === 0) return '';
+function getRoundSpacing(
+  roundTitle: string
+) {
+  switch (roundTitle) {
+    case 'Oitavas':
+      return {
+        gap: 18,
+        marginTop: 0,
+      };
+
+    case 'Quartas':
+      return {
+        gap: 90,
+        marginTop: 60,
+      };
+
+    case 'Semifinal':
+      return {
+        gap: 220,
+        marginTop: 180,
+      };
+
+    case 'Final':
+      return {
+        gap: 0,
+        marginTop: 620,
+      };
+
+    default:
+      return {
+        gap: 20,
+        marginTop: 0,
+      };
+  }
+}
+
+function buildTreeColumn(
+  title: string,
+
+  matches: MatchRow[],
+
+  tournamentFinished: boolean
+) {
+  if (matches.length === 0) {
+    return '';
+  }
+
+  const spacing =
+    getRoundSpacing(title);
 
   return `
-    <div style="min-width:290px;display:flex;flex-direction:column;gap:18px;">
-      <h2>${title}</h2>
-      ${matches.map((match) => buildMatchTreeCard(match, tournamentFinished)).join('')}
+    <div
+      style="
+        min-width: 290px;
+
+        display: flex;
+
+        flex-direction: column;
+
+        gap: ${spacing.gap}px;
+
+        margin-top:
+          ${spacing.marginTop}px;
+      "
+    >
+      <h2
+        color:#39ff14;
+
+text-shadow:
+  0 0 8px rgba(57,255,20,0.55);
+
+border-bottom:
+  2px solid #b026ff;
+
+padding-bottom:6px;
+
+width:max-content;
+
+letter-spacing:1px;
+        "
+      >
+        ${title}
+      </h2>
+
+      ${matches
+        .map((match) =>
+          buildMatchTreeCard(
+            match,
+            tournamentFinished
+          )
+        )
+        .join('')}
     </div>
   `;
 }
@@ -129,6 +588,7 @@ function buildTournamentSummary(data: TournamentData) {
         `Batalha ${match.match_order}`,
         `${match.participant1_name} vs ${match.participant2_name}`,
         `Vencedor: ${winner}`,
+        `Resultado: ${match.win_type || '2x0'}`,
       ].join('\n');
     });
 
@@ -162,9 +622,57 @@ function renderChampion(champion: TournamentData['champion']) {
   if (!champion) return '';
 
   return `
-    <div style="margin-bottom:30px;padding:24px;border-radius:16px;background:linear-gradient(135deg,#d4af37,#8b6b10);color:#111;">
-      <div style="font-size:14px;font-weight:bold;">CAMPEÃO</div>
-      <div style="font-size:38px;font-weight:800;margin-top:8px;">🏆 ${champion.name}</div>
+    <div
+      style="
+        margin-bottom:30px;
+
+        padding:24px;
+
+        border-radius:16px;
+
+        background:
+          linear-gradient(
+            135deg,
+            #ffd700,
+            #8b5a00
+          );
+
+        color:#1a1200;
+
+        border:
+          1px solid #ffd700;
+
+        box-shadow:
+          0 0 18px rgba(255,215,0,0.45),
+          0 0 40px rgba(255,180,0,0.18);
+      "
+    >
+      <div
+        style="
+          font-size:14px;
+
+          font-weight:bold;
+
+          letter-spacing:1px;
+        "
+      >
+        CAMPEÃO
+      </div>
+
+      <div
+        style="
+          font-size:38px;
+
+          font-weight:800;
+
+          margin-top:8px;
+
+          text-shadow:
+            0 0 10px rgba(255,255,255,0.35);
+        "
+      >
+        🏆 ${champion.name}
+      </div>
     </div>
   `;
 }
@@ -185,7 +693,6 @@ function renderCreateTournamentForm() {
   return `
     <section style="margin-bottom:40px;padding:24px;border-radius:16px;background:#151515;border:1px solid #333;">
       <h2 style="margin-top:0;">Criar novo torneio</h2>
-
       <div style="display:flex;flex-direction:column;gap:16px;">
         <input
           type="text"
@@ -193,7 +700,34 @@ function renderCreateTournamentForm() {
           placeholder="Nome/data do torneio"
           style="padding:12px;border-radius:8px;border:1px solid #333;background:#181818;color:white;"
         />
+<div
+  style="
+    margin-bottom:20px;
+    display:flex;
+    gap:20px;
+  "
+>
+  <label>
+    <input
+      type="radio"
+      name="battle-type"
+      value="sangue"
+      checked
+    />
 
+    Sangue
+  </label>
+
+  <label>
+    <input
+      type="radio"
+      name="battle-type"
+      value="conhecimento"
+    />
+
+    Conhecimento
+  </label>
+</div>
         <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
           ${participantInputs}
         </div>
@@ -333,8 +867,33 @@ function renderApp(data: TournamentData, showCreateForm = data.tournament === nu
   const tournamentFinished = data.tournament?.status === 'finished';
 
   document.body.innerHTML = `
-    <div style="padding:30px;font-family:Arial;background:#101010;color:white;min-height:100vh;">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:30px;">
+  <div
+  style="
+    padding:30px;
+
+    font-family:Arial;
+
+    color:white;
+
+    min-height:100vh;
+
+    background:
+      radial-gradient(
+        circle at top left,
+        rgba(120,0,180,0.18),
+        transparent 30%
+      ),
+
+      radial-gradient(
+        circle at bottom right,
+        rgba(0,255,120,0.08),
+        transparent 25%
+      ),
+
+      #05050a;
+  "
+>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;margin-bottom:30px;color:#39ff14;text-shadow:0 0 14px rgba(57,255,20,0.45);">
         <div>
           <h1>ISSO É BDA CARAI</h1>
           ${
@@ -348,6 +907,8 @@ function renderApp(data: TournamentData, showCreateForm = data.tournament === nu
               : `<p style="color:#999;">Nenhum torneio criado</p>`
           }
         </div>
+
+        ${renderTimerControls()}
 
                 ${
           data.tournament
@@ -411,6 +972,7 @@ function renderApp(data: TournamentData, showCreateForm = data.tournament === nu
   bindNewTournamentConfirmation(data);
   bindExportButton(data);
   bindWinnerButtons(tournamentFinished);
+  bindTimerControls();
 }
 
 function bindCreateTournamentForm() {
@@ -439,6 +1001,8 @@ function bindCreateTournamentForm() {
     const tournamentName = tournamentNameInput.value.trim();
     const participantNames = Array.from(participantInputs).map((input) => input.value.trim());
     const hasEmptyParticipant = participantNames.some((name) => name.length === 0);
+    const battleTypeInput = document.querySelector<HTMLInputElement>('input[name="battle-type"]:checked');
+    const battleType = battleTypeInput?.value || 'sangue';
 
     if (!tournamentName) {
       showFormError('Digite o nome do torneio.');
@@ -456,7 +1020,8 @@ function bindCreateTournamentForm() {
 
       const updatedData = await window.battleManager.createManualTournament(
         tournamentName,
-        participantNames
+        participantNames,
+        battleType
       );
 
       renderApp(updatedData, false);
@@ -498,59 +1063,103 @@ function bindNewTournamentConfirmation(data: TournamentData) {
 }
 
 function bindExportButton(data: TournamentData) {
-  const exportButton = document.getElementById('export-button');
-  const exportModal = document.getElementById('export-modal');
-  const exportContent = document.getElementById('export-content') as HTMLTextAreaElement | null;
-  const closeButton = document.getElementById('close-export-modal');
-  const copyButton = document.getElementById('copy-export-button');
+  const exportButton =
+    document.getElementById('export-button');
 
-  exportButton?.addEventListener('click', () => {
-    if (!exportModal || !exportContent) {
-      return;
-    }
+  const exportModal =
+    document.getElementById('export-modal');
 
-    exportContent.value = buildTournamentSummary(data);
-    exportModal.style.display = 'block';
-  });
+  const exportContent =
+    document.getElementById(
+      'export-content'
+    ) as HTMLTextAreaElement | null;
 
-  copyButton?.addEventListener('click', async () => {
-    if (!exportContent) {
-      return;
-    }
-
-    await navigator.clipboard.writeText(
-      exportContent.value
+  const closeButton =
+    document.getElementById(
+      'close-export-modal'
     );
 
-    copyButton.textContent =
-      'Copiado!';
+  const copyButton =
+    document.getElementById(
+      'copy-export-button'
+    );
 
-    setTimeout(() => {
+  exportButton?.addEventListener(
+    'click',
+    () => {
+      if (
+        !exportModal
+        || !exportContent
+      ) {
+        return;
+      }
+
+      exportContent.value =
+        buildTournamentSummary(data);
+
+      exportModal.style.display =
+        'block';
+    }
+  );
+
+  closeButton?.addEventListener(
+    'click',
+    () => {
+      if (!exportModal) {
+        return;
+      }
+
+      exportModal.style.display =
+        'none';
+    }
+  );
+
+  copyButton?.addEventListener(
+    'click',
+    async () => {
+      if (!exportContent) {
+        return;
+      }
+
+      await navigator.clipboard
+        .writeText(
+          exportContent.value
+        );
+
       copyButton.textContent =
-        'Copiar resultado';
-    }, 2000);
-  });
+        'Copiado!';
 
-  closeButton?.addEventListener('click', () => {
-    if (!exportModal) {
-      return;
-    }
-      document.addEventListener('keydown', (event) => {
-    if (event.key !== 'Escape') {
-      return;
-    }
+      setTimeout(() => {
+        if (!copyButton) {
+          return;
+        }
 
-    if (!exportModal) {
-      return;
+        copyButton.textContent =
+          'Copiar resultado';
+      }, 2000);
     }
+  );
 
-    if (exportModal.style.display === 'block') {
-      exportModal.style.display = 'none';
+  document.addEventListener(
+    'keydown',
+    (event) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
+
+      if (!exportModal) {
+        return;
+      }
+
+      if (
+        exportModal.style.display
+        === 'block'
+      ) {
+        exportModal.style.display =
+          'none';
+      }
     }
-  });
-
-    exportModal.style.display = 'none';
-  });
+  );
 }
 
 function bindWinnerButtons(tournamentFinished: boolean) {
@@ -571,14 +1180,39 @@ function bindWinnerButtons(tournamentFinished: boolean) {
 
         if (!confirmed) return;
       }
+const roundsCheckbox =
+  document.querySelector(
+    `.rounds-checkbox[data-match-id="${matchId}"]`
+  ) as HTMLInputElement;
 
-      const updatedData = await window.battleManager.setMatchWinner(matchId, winnerId);
+console.log(
+  'checkbox',
+  roundsCheckbox
+);
+
+console.log(
+  'checked',
+  roundsCheckbox?.checked
+);
+
+const winType =
+  roundsCheckbox?.checked
+    ? '2x1'
+    : '2x0';
+
+console.log(
+  'winType',
+  winType
+);
+
+      const updatedData = await window.battleManager.setMatchWinner(matchId, winnerId, winType);
       renderApp(updatedData, false);
     });
   });
 }
 
 async function init() {
+  loadTimerValue();
   const data = await window.battleManager.getTournamentData();
   renderApp(data, data.tournament === null);
 }

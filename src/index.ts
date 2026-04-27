@@ -58,7 +58,7 @@ mainWindow.on('close', (event) => {
     mainWindow.close();
   }
 });
-  // mainWindow.webContents.openDevTools();
+   mainWindow.webContents.openDevTools();
 };
 
 ipcMain.handle('generate-test-tournament', async () => {
@@ -69,9 +69,9 @@ ipcMain.handle('generate-test-tournament', async () => {
 
 ipcMain.handle(
   'create-manual-tournament',
-  async (_event, payload: { tournamentName: string; participantNames: string[] }) => {
+  async (_event, payload: { tournamentName: string; participantNames: string[], battleType: string}) => {
     resetTestData();
-    createTournamentWithParticipants(payload.tournamentName, payload.participantNames);
+    createTournamentWithParticipants(payload.tournamentName, payload.participantNames, payload.battleType);
     const data =
   getTournamentData();
 
@@ -87,8 +87,16 @@ ipcMain.handle('get-tournament-data', async () => {
 
 ipcMain.handle(
   'set-match-winner',
-  async (_event, payload: { matchId: number; winnerId: number }) => {
-    setMatchWinner(payload.matchId, payload.winnerId);
+  async (_event, payload: {
+  matchId: number;
+  winnerId: number;
+  winType: string;
+}) => {
+    setMatchWinner(
+  payload.matchId,
+  payload.winnerId,
+  payload.winType
+);
     const data =
   getTournamentData();
 

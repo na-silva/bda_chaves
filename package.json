@@ -10,7 +10,8 @@
     "package": "electron-forge package",
     "make": "electron-forge make",
     "publish": "electron-forge publish",
-    "lint": "eslint --ext .ts,.tsx ."
+    "lint": "eslint --ext .ts,.tsx .",
+    "elo:recalc": "tsx scripts/recalculate-elo.ts"
   },
   "keywords": [],
   "author": "ns",
@@ -26,6 +27,7 @@
     "@electron-forge/plugin-webpack": "^7.11.1",
     "@electron/fuses": "^1.8.0",
     "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^25.6.0",
     "@typescript-eslint/eslint-plugin": "^5.62.0",
     "@typescript-eslint/parser": "^5.62.0",
     "@vercel/webpack-asset-relocator-loader": "^1.7.3",
@@ -37,6 +39,7 @@
     "node-loader": "^2.1.0",
     "style-loader": "^3.3.4",
     "ts-loader": "^9.5.7",
+    "tsx": "^4.21.0",
     "typescript": "^5.4.5"
   },
   "dependencies": {
