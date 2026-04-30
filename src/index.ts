@@ -58,7 +58,7 @@ mainWindow.on('close', (event) => {
     mainWindow.close();
   }
 });
-   mainWindow.webContents.openDevTools();
+   // mainWindow.webContents.openDevTools();
 };
 
 ipcMain.handle('generate-test-tournament', async () => {
